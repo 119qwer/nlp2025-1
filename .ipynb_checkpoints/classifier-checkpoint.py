@@ -18,19 +18,18 @@ from models.gpt2 import GPT2Model
 from optimizer import AdamW
 from tqdm import tqdm
 
-#위 tqdm 라이브러리는 학습 진행 상황을 보여주는 라이브러리인데 TQDM_DISABLE는 그 출력 여부를 나타내는 flag 변수이다.
 TQDM_DISABLE = False
 
-# 같은 시드 값이면 학습 시 같은 결과만 나오기 때문에 당연히 랜덤 시드 설정이 필요함
+
 # 필요한 모든 random seed 설정.
 def seed_everything(seed=11711):
-  random.seed(seed) # Python의 기본 random 모듈 시드 설정
-  np.random.seed(seed)  # NumPy의 시드 설정
-  torch.manual_seed(seed) # PyTorch CPU 연산 시드 설정
-  torch.cuda.manual_seed(seed) # PyTorch GPU 연산 시드 설정
-  torch.cuda.manual_seed_all(seed) # 멀티-GPU 환경일 경우 모든 GPU에 대해 시드 설정
-  torch.backends.cudnn.benchmark = False  # 성능 최적화를 위한 알고리즘 검색 비활성화
-  torch.backends.cudnn.deterministic = True # 매번 동일한 알고리즘 선택 (완전한 결정론)
+  random.seed(seed)
+  np.random.seed(seed)
+  torch.manual_seed(seed)
+  torch.cuda.manual_seed(seed)
+  torch.cuda.manual_seed_all(seed)
+  torch.backends.cudnn.benchmark = False
+  torch.backends.cudnn.deterministic = True
 
 
 class GPT2SentimentClassifier(torch.nn.Module):
@@ -42,32 +41,25 @@ class GPT2SentimentClassifier(torch.nn.Module):
   '''
 
   def __init__(self, config):
-    super(GPT2SentimentClassifier, self).__init__() # 모델 구조를 초기화(안의 데이터를 초기화 하는 것은 아님)
+    super(GPT2SentimentClassifier, self).__init__()
     self.num_labels = config.num_labels
-    self.gpt = GPT2Model.from_pretrained() #우리가 만든 gpt2모델에 사전 학습된 가중치를 이식
+    self.gpt = GPT2Model.from_pretrained()
 
-    # 사전학습 모드에서는 GPT 파라미터들을 업데이트할 필요가 없다.
-      #assert in은 리스트 안에 값이 있는 지 체크하는 것, 
-      #config.fine_tune_mode가 ["last-linear-layer", "full-model"] 이 리스트 안에 있으면 통과, 없으면 에러 발생
+    # 사전학습 모드에서는 GPT 파라미터들을 업데이트할 필요가가 없다.
     assert config.fine_tune_mode in ["last-linear-layer", "full-model"]
     for param in self.gpt.parameters():
-        #gpt-2는 제외하고 classfier만 학습
       if config.fine_tune_mode == 'last-linear-layer':
         param.requires_grad = False
-          #gpt-2를 포함한 모델 전체 학습
       elif config.fine_tune_mode == 'full-model':
         param.requires_grad = True
 
-    
     '''
     TODO: BERT 임베딩의 감정 분류를 위해 필요한 인스턴스 변수를 생성하시오.
     '''
     ### 완성시켜야 할 빈 코드 블록
-    hidden_size = self.gpt.config.hidden_size
-    self.classifier = torch.nn.Linear(hidden_size, self.num_labels)
+    raise NotImplementedError
 
-    
-      #gpt2는 gpt2_layer를 활용해서 문맥을 학습시킴
+
   def forward(self, input_ids, attention_mask):
     '''문장들의 batch를 받아서 감정 클래스에 대한 로짓을 반환'''
 
@@ -77,14 +69,8 @@ class GPT2SentimentClassifier(torch.nn.Module):
         적절한 반환값이 무엇인지 생각해보시오.
     '''
     ### 완성시켜야 할 빈 코드 블록
-      #gpt2는 {'last_hidden_state': sequence_output, 'last_token': last_token} 로 반환하는 데 그 중 last_token이 필요함
-    outputs = self.gpt(input_ids=input_ids, attention_mask=attention_mask)
-    last_token = outputs['last_token']
-    logits = self.classifier(last_token)
-      #todo에 나오는 손실함수 F.cross_entropy는 softmax 하기 전 값을 주어야 하기 때문에 그대로 logits를 주는 것이 맞다.
-    return logits
-      
-      
+    raise NotImplementedError
+
 
 class SentimentDataset(Dataset):
   def __init__(self, dataset, args):

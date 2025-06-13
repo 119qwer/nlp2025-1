@@ -65,19 +65,42 @@ class GPT2Layer(nn.Module):
     #라고 foward에서 사용할거임
     
   def forward(self, hidden_states, attention_mask):
-    # --- 1. Self-Attention ---
-    normed_hidden = self.attention_layer_norm(hidden_states)
-    attn_output = self.self_attention(normed_hidden, attention_mask)
-    hidden_states = self.add(hidden_states, attn_output, self.attention_dense, self.attention_dropout)
+    # -------------------------------
+    # 1. Self-Attention Block
+    # -------------------------------
+    residual = hidden_states  # 🔹 잔차용 복사
 
-    # --- 2. Feed-Forward ---
-    normed_hidden = self.out_layer_norm(hidden_states)
-    ff_output = self.interm_dense(normed_hidden)
-    ff_output = self.interm_af(ff_output)
-    hidden_states = self.add(hidden_states, ff_output, self.out_dense, self.out_dropout)
+    # 🔸 Self-Attention 연산 (즉, self_attention의 forward 함수 실행)
+    attention_output = self.self_attention(
+        hidden_states,        # Q, K, V
+        attention_mask        # mask는 토큰간 주의를 제한히기 위함(원하는 토큰만 보기 위함)
+    )
 
+    # 🔸 후처리: 투영(head들의 attention 통합) → 드롭아웃(과적합 방지)
+    attention_output = self.add(residual, attention_output, self.attention_dense, self.attention_dropout)
+    #attention_output = self.attention_dense(attention_output)
+    #attention_output = self.attention_dropout(attention_output)
+
+    # 🔸 Residual + LayerNorm (residual 후에 정규화 하는 것이 원칙, 아니면 residual의 효과가 반감됨)
+    hidden_states = self.attention_layer_norm(attention_output)
+
+    # -------------------------------
+    # 2. Feed Forward Network Block(Self-Attention을 통해 토큰 간 관계를 학습한 후 ffn으로 비선형적으로 가공)
+    # -------------------------------
+    residual = hidden_states  # 🔹 다시 잔차용 복사
+
+    # 🔸 FFN 확장 → 활성화 → 축소
+    ff_output = self.interm_dense(hidden_states) # 차원 확장
+    ff_output = self.interm_af(ff_output)       # GELU함수 적용
+    ff_output = self.add(residual, ff_output, self.out_dense, self.out_dropout)
+    #ff_output = self.out_dense(ff_output)       #차원 축소
+    #ff_output = self.out_dropout(ff_output)     #드랍아웃
+
+    # 🔸 Residual + LayerNorm
+    hidden_states = self.out_layer_norm(ff_output)
+
+    # 🔚 최종 출력
     return hidden_states
-
         
   #def forward(self, hidden_states, attention_mask):
     # """
@@ -90,4 +113,46 @@ class GPT2Layer(nn.Module):
 
     ### 완성시켜야 할 빈 코드 블록
     #raise NotImplementedError
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+# 테스트용 config 클래스 정의
+class Config:
+    def __init__(self):
+        self.hidden_size = 768
+        self.intermediate_size = 3072
+        self.hidden_dropout_prob = 0.1
+        self.attention_probs_dropout_prob = 0.1
+        self.layer_norm_eps = 1e-5
+        self.max_position_embeddings = 128
+        self.n_head = 12
+        # ❗️추가해 주세요:
+        self.num_attention_heads = 12  # 또는 self.n_head도 같이 둘 수 있음
+        self.max_position_embeddings = 128
+
+# 가짜 causal mask 생성 함수
+def generate_causal_mask(seq_len):
+    return torch.tril(torch.ones(seq_len, seq_len)).unsqueeze(0).unsqueeze(0)  # shape: [1, 1, T, T]
+
+# 테스트용 GPT2Layer 인스턴스 생성
+config = Config()
+layer = GPT2Layer(config)
+
+# 입력 텐서 생성: [batch, seq_len, hidden_size]
+batch_size = 2
+seq_len = 16
+hidden_size = config.hidden_size
+x = torch.randn(batch_size, seq_len, hidden_size)
+
+# 마스크 생성
+attention_mask = generate_causal_mask(seq_len)
+
+# forward 실행
+with torch.no_grad():
+    out = layer(x, attention_mask)
+
+print("입력 shape:", x.shape)
+print("출력 shape:", out.shape)
 

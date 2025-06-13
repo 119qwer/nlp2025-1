@@ -1,25 +1,21 @@
 import torch
-
+from modules.LoRALinear import LoRALinear
 from einops import rearrange
 from torch import nn
 
-
-class CausalSelfAttention(nn.Module):
+class SelfAttention123(nn.Module):
   def __init__(self, config):
-    super().__init__()
+        super().__init__()
+        self.num_attention_heads = config.num_attention_heads
+        self.attention_head_size = int(config.hidden_size / config.num_attention_heads)
+        self.all_head_size = self.num_attention_heads * self.attention_head_size
 
-    self.num_attention_heads = config.num_attention_heads
-    self.attention_head_size = int(config.hidden_size / config.num_attention_heads)
-    self.all_head_size = self.num_attention_heads * self.attention_head_size
+        # LoRA 버전 Linear 레이어 사용
+        self.query = LoRALinear(config.hidden_size, self.all_head_size, r=4, lora_alpha=16)
+        self.key = LoRALinear(config.hidden_size, self.all_head_size, r=4, lora_alpha=16)
+        self.value = LoRALinear(config.hidden_size, self.all_head_size, r=4, lora_alpha=16)
 
-    # key, value, query에 대한 선형변환 layer 초기화.
-    self.query = nn.Linear(config.hidden_size, self.all_head_size)
-    self.key = nn.Linear(config.hidden_size, self.all_head_size)
-    self.value = nn.Linear(config.hidden_size, self.all_head_size)
-
-    # 이 드롭아웃은 트랜스포머의 원래 구현에 따라 normalized attention scores에 적용된다.
-    # 다소 이례적이지만, 경험적으로 이것이 더 나은 성능을 제공한다고 알려져 있다.
-    self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
+        self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
 
   def transform(self, x, linear_layer):
     # hidden_state (x) 를 사영하기 위해 k, v, q의 해당 linear_layer가 사용된다.
@@ -97,3 +93,4 @@ class CausalSelfAttention(nn.Module):
     # multi-head attention 계산.
     attn_value = self.attention(key_layer, query_layer, value_layer, attention_mask)
     return attn_value
+        

@@ -21,7 +21,7 @@ from einops import rearrange
 from datasets import (
     SonnetsDataset,
 )
-from models.gpt2 import GPT2Model
+from models.TestGPT import TestGPT
 from optimizer import AdamW
 
 TQDM_DISABLE = False
@@ -43,7 +43,7 @@ class SonnetGPT(nn.Module):
 
     def __init__(self, args):
         super().__init__()
-        self.gpt = GPT2Model.from_pretrained(model=args.model_size, d=args.d, l=args.l, num_heads=args.num_heads)
+        self.gpt = TestGPT.from_pretrained(model=args.model_size, d=args.d, l=args.l, num_heads=args.num_heads)
         self.tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
         self.tokenizer.pad_token = self.tokenizer.eos_token
 
@@ -171,10 +171,10 @@ def train(args):
 
     lr = args.lr
     #####수정 부분(아래 한줄 활성화하고 두줄은 지우면 원래대로 됨)
-    optimizer = AdamW(model.parameters(), lr=lr)
+    #optimizer = AdamW(model.parameters(), lr=lr)
     # # 'lora_'라는 이름이 붙은 파라미터만 학습 대상
-    # lora_params = [p for n, p in model.named_parameters() if 'lora_' in n and p.requires_grad]
-    # optimizer = AdamW(lora_params, lr=1e-4, weight_decay=0.0)
+    lora_params = [p for n, p in model.named_parameters() if 'lora_' in n and p.requires_grad]
+    optimizer = AdamW(lora_params, lr=1e-4, weight_decay=0.0)
 
     for epoch in range(args.epochs):
         model.train()

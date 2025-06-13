@@ -1,13 +1,16 @@
 from torch import nn
 
+
+from modules.LoRALinear import LoRALinear
+
 import torch.nn.functional as F
 
 #from modules.attention import CausalSelfAttention
 #같은 디렉토리안에 있는 데 modules.attention라고 하면 인식이 안되서 수정했다.
-from modules.attention import CausalSelfAttention
+from modules.SelfAttention123 import CausalSelfAttention
 
 #입력 시퀀스를 받아서 Self-Attention과 FeedForward를 거치게 하는 클래스, init으로 초기화하고 foward함수를 사용하여 Self-Attention과 FeedForward를 적용
-class GPT2Layer(nn.Module):
+class SonnetLayer(nn.Module):
   def __init__(self, config):
     super().__init__()
     # Multi-head attention.
@@ -27,7 +30,14 @@ class GPT2Layer(nn.Module):
       
       #입력 벡터(hidden_size 차원)를 더 넓은 차원(intermediate_size)으로 선형 확장하는 코드, 더 풍부한 비선형 표현을 학습하기 위해 잠깐 차원을 키우는 것
       #나중에 가중치 W를 곱해주면서 원래 차원만큼 다시 작아질거임
-    self.interm_dense = nn.Linear(config.hidden_size, config.intermediate_size)
+    self.interm_dense = LoRALinear(
+    config.hidden_size,
+    config.intermediate_size,
+    r=4,
+    lora_alpha=16,
+    lora_dropout=0.05
+    )
+
       #F.gelu는 GELU함수로 Relu와 유사하지만 더 부드럽게 통과시킨다. 입력이 작은 것은 더 약하게, 클수록 그대로 통과시키는 필터(더 유의미한 것을 통과시키는 필터)
     self.interm_af = F.gelu
     # Add-norm for feed forward.(ffn의 두번째 선형변환)

@@ -7,11 +7,11 @@ from transformers import GPT2Model as OpenAIGPT2Model
 
 from config import GPT2Config
 from models.base_gpt import GPTPreTrainedModel
-from modules.gpt2_layer import GPT2Layer
+from modules.SonnetLayer import SonnetLayer
 from utils import get_extended_attention_mask
 
 
-class GPT2Model(GPTPreTrainedModel):
+class TestGPT(GPTPreTrainedModel):
   """
   GPT 모델은 문장 내 각 토큰에 대한 최종 임베딩을 반환한다.
 
@@ -35,7 +35,7 @@ class GPT2Model(GPTPreTrainedModel):
     self.register_buffer('position_ids', position_ids)
 
     # GPT-2 layers.
-    self.gpt_layers = nn.ModuleList([GPT2Layer(config) for _ in range(config.num_hidden_layers)])
+    self.gpt_layers = nn.ModuleList([SonnetLayer(config) for _ in range(config.num_hidden_layers)])
 
     # [CLS] 토큰 변환.
     self.pooler_dense = nn.Linear(config.hidden_size, config.hidden_size)
@@ -135,7 +135,7 @@ class GPT2Model(GPTPreTrainedModel):
   @classmethod
   def from_pretrained(cls, model='gpt2', d=768, l=12, num_heads=12):
     gpt_model = OpenAIGPT2Model.from_pretrained(model).eval()
-    our_model = GPT2Model(GPT2Config(hidden_size=d, num_hidden_layers=l,num_attention_heads=num_heads,
+    our_model = TestGPT(GPT2Config(hidden_size=d, num_hidden_layers=l,num_attention_heads=num_heads,
                                      intermediate_size=d*3)).eval()
 
     # Load word and positional embeddings.
