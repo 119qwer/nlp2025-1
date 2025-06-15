@@ -1,3 +1,5 @@
+
+
 '''
 Paraphrase detection을 위한 시작 코드.
 
@@ -59,19 +61,45 @@ class ParaphraseGPT(nn.Module):
 
   def forward(self, input_ids, attention_mask):
     """
-    TODO: paraphrase_detection_head Linear layer를 사용하여 토큰의 레이블을 예측하시오.
-
-    입력은 다음과 같은 구조를 갖는다:
-
-      'Is "{s1}" a paraphrase of "{s2}"? Answer "yes" or "no": '
-
-    따라서, 문장의 끝에서 다음 토큰에 대한 예측을 해야 할 것이다. 
-    훈련이 잘 되었다면, 패러프레이즈인 경우에는 토큰 "yes"(BPE index 8505)가, 
-    패러프레이즈가 아닌 경우에는 토큰 "no" (BPE index 3919)가 될 것이다.
+    Paraphrase detection을 위한 forward 함수.
+    
+    입력:
+        input_ids: 토큰화된 입력 문장들의 ID
+        attention_mask: attention mask
+    
+    출력:
+        logits: 레이블 인덱스에 맞는 logits (3919: "no", 8505: "yes")
     """
-    ### 완성시켜야 할 빈 코드 블록
-    raise NotImplementedError
-
+    # GPT 모델을 통해 hidden states 얻기
+    gpt_outputs = self.gpt(input_ids, attention_mask)
+    
+    # hidden states 추출
+    if isinstance(gpt_outputs, dict):
+        hidden_states = gpt_outputs['last_hidden_state']
+    else:
+        hidden_states = gpt_outputs[0]
+    
+    # 마지막 토큰의 hidden state만 사용
+    last_token_hidden = hidden_states[:, -1, :]
+    
+    # classification head를 통과시켜 2-class logits 생성
+    binary_logits = self.paraphrase_detection_head(last_token_hidden)
+    
+    # 레이블 인덱스(3919, 8505)에 맞는 logits 텐서 생성
+    batch_size = input_ids.size(0)
+    device = input_ids.device
+    
+    # 전체 vocab size만큼의 logits 텐서 생성 (매우 낮은 값으로 초기화)
+    vocab_size = 50257  # GPT-2 vocab size
+    full_logits = torch.full((batch_size, vocab_size), -1e9, device=device)
+    
+    # 레이블 위치에 실제 logits 값 할당
+    # binary_logits[:, 0] -> 3919 (no)
+    # binary_logits[:, 1] -> 8505 (yes)
+    full_logits[:, 3919] = binary_logits[:, 0]
+    full_logits[:, 8505] = binary_logits[:, 1]
+    
+    return full_logits
 
 
 def save_model(model, optimizer, args, filepath):
@@ -201,7 +229,13 @@ def get_args():
                       help="The model size as specified on hugging face. DO NOT use the xl model.",
                       choices=['gpt2', 'gpt2-medium', 'gpt2-large'], default='gpt2')
 
-  args = parser.parse_args()
+  # Jupyter Notebook에서 실행할 때는 빈 리스트로 parse
+  import sys
+  if 'ipykernel' in sys.modules:
+    args = parser.parse_args([])
+  else:
+    args = parser.parse_args()
+  
   return args
 
 
@@ -226,7 +260,8 @@ def add_arguments(args):
 
 if __name__ == "__main__":
   args = get_args()
-  args.filepath = f'{args.epochs}-{args.lr}-paraphrase.pt'  # 경로명 저장.
+  args.filepath = f'{args.epochs}-{args.lr}-paraphrase_colab.pt'  # 경로명 저장.
   seed_everything(args.seed)  # 재현성을 위한 random seed 고정.
   train(args)
   test(args)
+
