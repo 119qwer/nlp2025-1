@@ -5,6 +5,7 @@
 
 ## 패러프레이즈 탐지 수행
 baseline 패러프라이즈 코드 : paraphrase_detection.py
+
 향상시킨 버전 : paraphrase_pooling_detection.py
 
 
