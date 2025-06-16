@@ -28,5 +28,5 @@ python paraphrase_pooling_detection.py
 
 
 2. IDE에서 실행
-3. 
+   
 파이참과 같은 파이썬 IDE에서 실행
