@@ -4,7 +4,7 @@
 
 
 ## 패러프레이즈 탐지 수행
-baseline 패러프라이즈 코드 : paraphrase_detection.py
+#baseline 패러프라이즈 코드 : paraphrase_detection.py
 
 python paraphrase_detection.py --use_gpu
 
